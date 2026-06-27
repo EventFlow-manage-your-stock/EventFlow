@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// RDZEŃ I MULTI-TENANCY
+// ==========================================
+
+model Tenant {
+  id                 String   @id @default(uuid())
+  companyName        String
+  nip                String?
+  subscriptionStatus String   @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  users      User[]
+  warehouses Warehouse[]
+  items      Item[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  email     String   @unique
+  password  String
+  role      String   @default("LOGISTICIAN") // ADMIN, LOGISTICIAN, FIELD_WORKER
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// WIELOMAGAZYNOWOŚĆ I TOWARY
+// ==========================================
+
+model Warehouse {
+  id        String  @id @default(uuid())
+  tenantId  String
+  name      String
+  address   String?
+  isActive  Boolean @default(true)
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stock     StockLevel[]
+}
+
+model Item {
+  id        String   @id @default(uuid())
+  tenantId  String
+  sku       String
+  name      String
+  barcode   String?
+  unit      String   @default("szt") // szt, kg, mb
+  
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stock     StockLevel[]
+
+  @@unique([tenantId, sku]) // Unikalne SKU, ale tylko w obrębie danego tenanta!
+}
+
+// Tabela łącząca: Ile danego towaru jest w konkretnym magazynie
+model StockLevel {
+  id                String @id @default(uuid())
+  tenantId          String
+  warehouseId       String
+  itemId            String
+  quantityPhysical  Float  @default(0) // Fizycznie na półce
+  quantityAllocated Float  @default(0) // Zarezerwowane na nadchodzące wydarzenia
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, itemId]) // W jednym magazynie może być tylko jeden wpis dla konkretnego towaru
+}
