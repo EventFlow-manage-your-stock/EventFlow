@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'; 
 import { 
   Home, CheckSquare, Calendar, CalendarClock, Star, Users, MapPin, 
   Globe, Box, Wrench, UsersRound, Truck, Settings, ChevronDown, 
@@ -8,13 +8,13 @@ import {
   AlertTriangle, BarChart3, FileCheck, DollarSign, History, Briefcase, HelpCircle
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // <-- Dodano usePathname
 
-// Konfiguracja pełnego menu ze zrzutów ekranu
+// Dodaliśmy właściwości `href` do zakładek, które chcemy aktywować
 const menuConfig = [
-  { icon: Home, label: 'Kokpit', isExpandable: false },
+  { icon: Home, label: 'Kokpit', isExpandable: false, href: '/dashboard' },
   { icon: CheckSquare, label: 'Zadania', badge: '0', isExpandable: false },
-  { icon: Calendar, label: 'Kalendarz', isExpandable: false },
+  { icon: Calendar, label: 'Kalendarz', isExpandable: false, href: '/dashboard/calendar' }, // <-- Link do kalendarza
   { icon: CalendarClock, label: 'Plan dnia', isExpandable: false },
   { 
     icon: Star, label: 'Wydarzenia', isExpandable: true, 
@@ -40,20 +40,18 @@ const menuConfig = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isDark, setIsDark] = useState(true); // Stan Dark/Light mode
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
-    'Wydarzenia': true // Domyślnie otwarte, żeby pokazać działanie
-  });
+  const [isDark, setIsDark] = useState(false); 
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   
   const [isMounted, setIsMounted] = useState(false);
-
+  
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const router = useRouter();
+  const pathname = usePathname(); // <-- Odczytywanie aktualnego adresu URL
 
   useEffect(() => {
     setIsMounted(true);
-    // Jeśli po załadowaniu nie ma użytkownika, wyrzucamy go do logowania
     if (!user) {
       router.push('/login');
     }
@@ -73,7 +71,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    // Główny wrapper narzucający motyw (klasa .dark aktywuje ciemne warianty Tailwind)
     <div className={`${isDark ? 'dark' : ''}`}>
       <div className="flex h-screen bg-slate-50 text-slate-800 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-300">
         
@@ -85,7 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           {/* Logo */}
           <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-slate-200 dark:border-white/5">
-            {isSidebarOpen && <span className="text-xl font-bold text-slate-900 dark:text-white tracking-wider">Event<span className="text-blue-500">Flow</span></span>}
+            {isSidebarOpen && <span className="text-xl font-bold text-slate-900 dark:text-white tracking-wider">WMS<span className="text-blue-500">Event</span></span>}
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg hover:bg-slate-200/50 text-slate-600 dark:text-slate-400 dark:hover:bg-white/10 transition">
               <Menu size={20} />
             </button>
@@ -107,39 +104,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Menu Items */}
           <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar">
             <ul className="space-y-1 px-2 pb-4">
-              {menuConfig.map((item) => (
-                <li key={item.label}>
-                  <button 
-                    onClick={() => item.isExpandable ? toggleMenu(item.label) : null}
-                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors 
-                    ${item.label === 'Kokpit' ? 'bg-blue-50 text-blue-600 dark:bg-blue-600/10 dark:text-blue-400' : 'hover:bg-slate-100 text-slate-700 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon size={18} className={item.label === 'Wydarzenia' ? 'text-blue-500' : ''} />
-                      {isSidebarOpen && <span>{item.label}</span>}
-                    </div>
-                    {isSidebarOpen && (
-                      <div className="flex items-center gap-2">
-                        {item.badge && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-white/5">{item.badge}</span>}
-                        {item.isExpandable && <ChevronDown size={16} className={`transition-transform duration-200 ${openMenus[item.label] ? 'rotate-180' : ''}`} />}
+              {menuConfig.map((item) => {
+                // Sprawdzamy, czy obecna ścieżka odpowiada tej z menu
+                const isActive = item.href === pathname;
+
+                return (
+                  <li key={item.label}>
+                    <button 
+                      onClick={() => {
+                        if (item.isExpandable) toggleMenu(item.label);
+                        if (item.href) router.push(item.href); // <-- Nawigacja po kliknięciu
+                      }}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors 
+                      ${isActive ? 'bg-blue-50 text-blue-600 dark:bg-blue-600/10 dark:text-blue-400' : 'hover:bg-slate-100 text-slate-700 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon size={18} className={isActive || item.label === 'Wydarzenia' ? 'text-blue-500' : ''} />
+                        {isSidebarOpen && <span>{item.label}</span>}
                       </div>
+                      {isSidebarOpen && (
+                        <div className="flex items-center gap-2">
+                          {item.badge && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-white/5">{item.badge}</span>}
+                          {item.isExpandable && <ChevronDown size={16} className={`transition-transform duration-200 ${openMenus[item.label] ? 'rotate-180' : ''}`} />}
+                        </div>
+                      )}
+                    </button>
+                    
+                    {/* Podmenu */}
+                    {isSidebarOpen && item.isExpandable && openMenus[item.label] && (
+                      <ul className="mt-1 space-y-1 pl-9 pr-2">
+                        {item.subItems?.map(subItem => (
+                          <li key={subItem}>
+                            <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white">
+                              {subItem}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
                     )}
-                  </button>
-                  
-                  {/* Podmenu */}
-                  {isSidebarOpen && item.isExpandable && openMenus[item.label] && (
-                    <ul className="mt-1 space-y-1 pl-9 pr-2">
-                      {item.subItems?.map(subItem => (
-                        <li key={subItem}>
-                          <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white">
-                            {subItem}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           </nav>
 
@@ -175,7 +180,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Plus size={16} /> Zobacz jak działa
               </button>
               
-              {/* Przełącznik motywu */}
               <button 
                 onClick={() => setIsDark(!isDark)} 
                 className="p-2 text-slate-500 hover:text-blue-600 transition dark:text-slate-400 dark:hover:text-amber-400"
@@ -193,9 +197,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* PAGE CONTENT */}
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar relative">
-            {/* Opcjonalny delikatny gradient w tle wzmacniający efekt szkła */}
             <div className="absolute inset-0 z-0 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-900/10 pointer-events-none" />
             <div className="relative z-10 h-full">
+              {/* Tutaj automatycznie ładują się strony wybrane w menu (page.tsx z dashboard/ lub dashboard/calendar/) */}
               {children}
             </div>
           </div>
