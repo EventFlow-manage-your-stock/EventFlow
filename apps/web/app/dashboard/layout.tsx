@@ -82,7 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           {/* Logo */}
           <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-slate-200 dark:border-white/5">
-            {isSidebarOpen && <span className="text-xl font-bold text-slate-900 dark:text-white tracking-wider">WMS<span className="text-blue-500">Event</span></span>}
+            {isSidebarOpen && <span className="text-xl font-bold text-slate-900 dark:text-white tracking-wider">Event<span className="text-blue-500">Flow</span></span>}
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg hover:bg-slate-200/50 text-slate-600 dark:text-slate-400 dark:hover:bg-white/10 transition">
               <Menu size={20} />
             </button>

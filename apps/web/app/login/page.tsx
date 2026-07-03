@@ -28,7 +28,11 @@ export default function LoginPage() {
         email,
         passwordRaw: password,
       });
+      const { access_token, user } = response.data;
 
+      localStorage.setItem('access_token', access_token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
       setAuth(response.data.access_token, response.data.user);
       router.push('/dashboard');
     } catch (err: any) {

@@ -1,19 +1,22 @@
-// apps/web/lib/api.ts
 import axios from 'axios';
-import { useAuthStore } from '../store/auth.store';
 
 export const api = axios.create({
-  // Tutaj podajemy port 3001 lub inny, na którym działa Twój backend NestJS!
-  baseURL: 'http://localhost:3002/api', // Upewnij się, że porty frontu (3000) i API nie kolidują. Jeśli API to 3001, zmień to.
+  baseURL: 'http://localhost:3002/api', // Upewnij się, że port jest właściwy
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Ten kod uruchamia się przed każdym wysłaniem zapytania do backendu
 api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Sprawdzamy, czy jesteśmy po stronie przeglądarki (Next.js SSR safety)
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });

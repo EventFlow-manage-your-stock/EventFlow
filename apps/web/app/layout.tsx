@@ -1,9 +1,5 @@
+import { AuthProvider } from '../context/AuthContext';
 import './globals.css';
-
-export const metadata = {
-  title: 'EventFlow - manage your stack',
-  description: 'Nowoczesny system zarządzania magazynem i logistyką',
-};
 
 export default function RootLayout({
   children,
@@ -12,7 +8,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pl">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }

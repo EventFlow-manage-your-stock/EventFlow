@@ -4,12 +4,13 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { WydarzeniaModule } from './wydarzenia/wydarzenia.module';
 import { TenantMiddleware } from './prisma/tenant.middleware';
 
 @Module({
   imports: [ConfigModule.forRoot({
       isGlobal: true,
-    }),PrismaModule, AuthModule],
+    }),PrismaModule, AuthModule, WydarzeniaModule],
   controllers: [AppController],
   providers: [AppService],
 })

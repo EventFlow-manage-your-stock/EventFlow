@@ -1,5 +1,5 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service'; 
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
@@ -10,74 +10,62 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(email: string, passwordRaw: string, companyName: string) {
-    // 1. Sprawdź, czy użytkownik o takim emailu już istnieje
-    const existingUser = await this.prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      throw new ConflictException('Użytkownik o tym adresie email już istnieje.');
-    }
-
-    // 2. Haszowanie hasła przy użyciu bezpiecznego współczynnika (salt rounds = 10)
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(passwordRaw, salt);
-
-    // 3. Transakcja DB: Tworzymy firmę i użytkownika jako jedną operację
-    return this.prisma.$transaction(async (tx) => {
-      const tenant = await tx.tenant.create({
-        data: {
-          companyName,
-          subscriptionStatus: 'ACTIVE',
-        },
-      });
-
-      const user = await tx.user.create({
-        data: {
-          email,
-          password: passwordHash,
-          role: 'ADMIN',
-          tenantId: tenant.id, // Ścisłe powiązanie z tenantem
-        },
-      });
-
-      // Zwracamy bezpieczne dane (bez hasła)
-      return {
-        userId: user.id,
-        email: user.email,
-        tenantId: tenant.id,
-        companyName: tenant.companyName,
-      };
-    });
-  }
-
   async login(email: string, passwordRaw: string) {
-    // 1. Wyszukaj użytkownika w bazie danych
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      throw new UnauthorizedException('Nieprawidłowy email lub hasło.');
-    }
+    console.log(`\n--- PRÓBA LOGOWANIA ---`);
+    console.log(`Email z frontendu: '${email}'`);
+    // 1. Szukamy użytkownika po emailu i pobieramy powiązaną organizację
+    const uzytkownik = await this.prisma.uzytkownik.findFirst({
+      where: { email },
+      include: { 
+        organizacja: true,
+        role: {
+          include: { rola: true }
+        }
+      },
+    });
 
-    // 2. Porównaj surowe hasło z hashem z bazy danych
-    const isPasswordValid = await bcrypt.compare(passwordRaw, user.password);
+    if (!uzytkownik) {
+      console.log('❌ BŁĄD: Nie znaleziono użytkownika z takim mailem w bazie!');
+      throw new UnauthorizedException('Nieprawidłowe dane logowania');
+    }
+    console.log(`Znaleziono użytkownika: ID ${uzytkownik.id}`);
+    
+    const isPasswordValid = await bcrypt.compare(passwordRaw, uzytkownik.haslo);
+
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Nieprawidłowy email lub hasło.');
+      console.log('❌ BŁĄD: Podane hasło nie pasuje do hasha bcrypt!');
+      // Wypiszmy hash, żeby sprawdzić czy nie ma na końcu np. spacji z kopiowania
+      console.log(`Hash w bazie: '${uzytkownik.haslo}'`);
+      throw new UnauthorizedException('Nieprawidłowe dane logowania');
     }
 
-    // 3. Przygotuj ładunek (Payload) dla JWT - to te dane będą zaszyfrowane w tokenie
+    // 3. Sprawdzenie, czy konto i organizacja są aktywne
+    if (!uzytkownik.aktywny || !uzytkownik.organizacja.aktywny) {
+      console.log('❌ BŁĄD: Konto użytkownika lub organizacja są oznaczone jako nieaktywne!');
+      throw new UnauthorizedException('Konto lub organizacja są nieaktywne');
+    }
+
+    console.log('✅ Logowanie udane, generuję token...');
+
+    // 4. Budowa payloadu dla tokena JWT
     const payload = { 
-      sub: user.id, 
-      email: user.email, 
-      tenantId: user.tenantId, 
-      role: user.role 
+      sub: uzytkownik.id, 
+      email: uzytkownik.email,
+      orgId: uzytkownik.id_organizacji,
+      // Wyciągamy najwyższą rolę użytkownika (lub ustawiamy domyślną)
+      role: uzytkownik.role[0]?.rola.nazwa || 'Użytkownik'
     };
 
-    // 4. Wygeneruj i zwróć token sklejony z podstawowymi informacjami
+    // 5. Zwracamy obiekt w formacie, którego oczekuje nasz kod we frontendzie
     return {
       access_token: this.jwtService.sign(payload),
       user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        tenantId: user.tenantId
+        id: uzytkownik.id,
+        email: uzytkownik.email,
+        imie: uzytkownik.imie,
+        nazwisko: uzytkownik.nazwisko,
+        organizacja: uzytkownik.organizacja.nazwa,
+        role: payload.role
       }
     };
   }
