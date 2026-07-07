@@ -213,6 +213,20 @@ export class MagazynService {
         },
       });
 
+      // --- NOWA LOGIKA AUTOMATYCZNEGO ZGŁOSZENIA ---
+      if (dto.tworz_zgloszenie && dto.tytul_usterki && dto.id_statusu_serwisu && safeUserId) {
+        await tx.serwisSprzetu.create({
+          data: {
+            id_organizacji,
+            id_egzemplarza: egzemplarz.id,
+            id_statusu_serwisu: this.cleanNumber(dto.id_statusu_serwisu)!,
+            id_uzytkownika_zglosil: safeUserId,
+            tytul: this.cleanString(dto.tytul_usterki)!,
+            opis: this.cleanString(dto.opis_usterki)
+          }
+        });
+      }
+
       return egzemplarz;
     });
   }
@@ -249,6 +263,20 @@ export class MagazynService {
           nowa_wartosc: JSON.stringify(dto),
         },
       });
+
+      // --- NOWA LOGIKA AUTOMATYCZNEGO ZGŁOSZENIA ---
+      if (dto.tworz_zgloszenie && dto.tytul_usterki && dto.id_statusu_serwisu && safeUserId) {
+        await tx.serwisSprzetu.create({
+          data: {
+            id_organizacji,
+            id_egzemplarza: egzemplarz.id,
+            id_statusu_serwisu: this.cleanNumber(dto.id_statusu_serwisu)!,
+            id_uzytkownika_zglosil: safeUserId,
+            tytul: this.cleanString(dto.tytul_usterki)!,
+            opis: this.cleanString(dto.opis_usterki)
+          }
+        });
+      }
 
       return egzemplarz;
     });

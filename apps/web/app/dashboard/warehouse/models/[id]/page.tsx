@@ -7,10 +7,10 @@ import {
   ChevronRight, Edit2, Copy, Trash2, X, Image as ImageIcon, 
   Calendar, List, Share2, Printer, MapPin, Grid, Layers, 
   FileArchive, History, Wrench, Info, FileText, MessageSquare, 
-  CheckSquare, DollarSign, Globe, Plus, Search, Eye, Barcode, Loader2, Save
+  CheckSquare, DollarSign, Globe, Plus, Search, Barcode, Loader2
 } from 'lucide-react';
 import { api } from '../../../../../lib/api';
-import ItemModal from '../../../../../components/ItemModal'; // <-- IMPORT NOWEGO MODALA
+import ItemModal from '../../../../../components/ItemModal';
 
 const TABS = [
   { id: 'egzemplarze', label: 'Egzemplarze', icon: Grid },
@@ -31,7 +31,6 @@ const TABS = [
 function ArrowRightLeftIcon(props: any) { return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>; }
 function BoxIcon(props: any) { return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>; }
 
-// Helper do kolorowania statusów serwisowych z bazy
 const getStatusConfig = (status: string) => {
   switch (status) {
     case 'Działa': return 'bg-emerald-500 text-white';
@@ -43,6 +42,14 @@ const getStatusConfig = (status: string) => {
   }
 };
 
+const getServiceStatusColor = (statusName: string, defaultColor: string) => {
+  const name = statusName?.toLowerCase() || '';
+  if (name.includes('pilne')) return 'text-red-500 bg-red-50';
+  if (name.includes('napraw')) return 'text-amber-500 bg-amber-50';
+  if (name.includes('gotow')) return 'text-emerald-500 bg-emerald-50';
+  return defaultColor ? `text-[${defaultColor}] bg-slate-50` : 'text-slate-500 bg-slate-100';
+};
+
 export default function ModelDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -51,26 +58,35 @@ export default function ModelDetailsPage() {
 
   const defaultTab = searchParams.get('tab') || 'egzemplarze';
   const [activeTab, setActiveTab] = useState(defaultTab);
+  
   const [modelData, setModelData] = useState<any>(null);
-  const [isEditMode, setIsEditMode] = useState(isNew);
-  const [isLoading, setIsLoading] = useState(!isNew);
   const [kategorie, setKategorie] = useState<any[]>([]);
+  const [serwisy, setSerwisy] = useState<any[]>([]); // Stan dla zgłoszeń serwisowych
 
-  // Stany dla Modala Egzemplarza
+  const [isLoading, setIsLoading] = useState(!isNew);
+  const [isLoadingSerwisy, setIsLoadingSerwisy] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(isNew);
+
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-
-  // Stany dla Tabeli Egzemplarzy
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
 
+  // Inicjalne pobieranie danych modelu i kategorii
   useEffect(() => {
     fetchKategorie();
     if (!isNew) {
       fetchModelData();
     }
   }, [params.id]);
+
+  // Leniwe (lazy) pobieranie zgłoszeń serwisowych po wejściu w odpowiednią zakładkę
+  useEffect(() => {
+    if (!isNew && activeTab === 'serwis' && serwisy.length === 0) {
+      fetchSerwisy();
+    }
+  }, [activeTab, isNew]);
 
   const fetchKategorie = async () => {
     try {
@@ -88,11 +104,24 @@ export default function ModelDetailsPage() {
       const res = await api.get(`/api/magazyn/modele/${params.id}`);
       setModelData(res.data);
       reset(res.data);
-      setSelectedItems([]); // Czyszczenie zaznaczeń po przeładowaniu
+      setSelectedItems([]); 
     } catch (error) {
       console.error(error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Nowa funkcja pobierająca zgłoszenia dla tego konkretnego modelu sprzętu
+  const fetchSerwisy = async () => {
+    setIsLoadingSerwisy(true);
+    try {
+      const res = await api.get(`/api/serwis/model/${params.id}`);
+      setSerwisy(res.data);
+    } catch (error) {
+      console.error('Błąd pobierania serwisów:', error);
+    } finally {
+      setIsLoadingSerwisy(false);
     }
   };
 
@@ -172,34 +201,35 @@ export default function ModelDetailsPage() {
   const inStock = modelData?.egzemplarze?.filter((e:any) => e.status_serwisowy === 'Działa' || e.status_serwisowy === 'Naprawiony').length || 0;
   const inService = modelData?.egzemplarze?.filter((e:any) => e.status_serwisowy?.includes('Wymaga') || e.status_serwisowy === 'W serwisie').length || 0;
 
-  if (isLoading) return <div className="p-8 text-slate-500">Wczytywanie karty modelu...</div>;
+  if (isLoading) return <div className="p-8 flex items-center justify-center gap-3 text-slate-500"><Loader2 className="animate-spin" /> Wczytywanie karty modelu...</div>;
 
   return (
     <div className="flex h-full flex-col bg-white overflow-y-auto custom-scrollbar">
       
-      {/* --- MODAL EGZEMPLARZA --- */}
       <ItemModal 
         isOpen={isItemModalOpen}
         onClose={() => setIsItemModalOpen(false)}
-        onSuccess={fetchModelData}
+        onSuccess={() => {
+          fetchModelData();
+          if (activeTab === 'serwis') fetchSerwisy(); // Odśwież serwisy po ewentualnym wygenerowaniu zgłoszenia
+        }}
         modelId={modelData?.id}
         modelName={modelData?.nazwa}
         initialData={editingItem}
       />
 
-      {/* BREADCRUMBS */}
       <div className="flex items-center px-6 py-4 bg-slate-50 border-b border-slate-200">
         <div className="flex items-center text-sm text-slate-500 gap-2 flex-1">
-          <span className="cursor-pointer hover:text-blue-600" onClick={() => router.push('/dashboard')}>Kokpit</span> <ChevronRight size={14} />
-          <span className="cursor-pointer hover:text-blue-600" onClick={() => router.push('/dashboard/warehouse')}>Magazyn</span> <ChevronRight size={14} />
-          <span className="cursor-pointer hover:text-blue-600">{modelData?.kategoria?.nazwa || 'Kategoria'}</span> <ChevronRight size={14} />
+          <span className="cursor-pointer hover:text-sky-600" onClick={() => router.push('/dashboard')}>Kokpit</span> <ChevronRight size={14} />
+          <span className="cursor-pointer hover:text-sky-600" onClick={() => router.push('/dashboard/warehouse')}>Magazyn</span> <ChevronRight size={14} />
+          <span className="cursor-pointer hover:text-sky-600">{modelData?.kategoria?.nazwa || 'Kategoria'}</span> <ChevronRight size={14} />
           <span className="font-bold text-slate-800 border-b-2 border-slate-800 pb-0.5">{isNew ? 'Nowy Sprzęt' : modelData?.nazwa}</span>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmitModel)} className="p-6">
         
-        {/* UPPER DASHBOARD (HEADER) - Zgodny z wcześniejszym kodem */}
+        {/* UPPER CARD */}
         <div className="relative border border-slate-200 rounded-xl p-6 bg-slate-50/50 shadow-sm flex flex-col lg:flex-row gap-8">
           
           <div className="absolute top-4 right-4 flex gap-2">
@@ -227,7 +257,7 @@ export default function ModelDetailsPage() {
             </div>
             <div className="flex flex-col gap-1.5 mt-2">
               {isEditMode ? (
-                <input {...register('nazwa', {required: true})} className="text-lg font-bold border border-slate-300 px-2 py-1 rounded w-full outline-none focus:border-blue-500" placeholder="Nazwa sprzętu" />
+                <input {...register('nazwa', {required: true})} className="text-lg font-bold border border-slate-300 px-2 py-1 rounded w-full outline-none focus:border-sky-500" placeholder="Nazwa sprzętu" />
               ) : (
                 <h2 className="text-[17px] font-bold text-slate-800 tracking-tight">{modelData?.nazwa}</h2>
               )}
@@ -238,7 +268,7 @@ export default function ModelDetailsPage() {
                 
                 <span className="font-semibold text-slate-500">Typ:</span>
                 {isEditMode ? (
-                   <select {...register('typ_sprzetu')} className="border border-slate-200 rounded px-1 py-0.5 text-xs outline-none">
+                   <select {...register('typ_sprzetu')} className="border border-slate-200 rounded px-1 py-0.5 text-xs outline-none focus:border-sky-500">
                      <option value="sprzet">Sprzęt (Egzemplarzowy)</option>
                      <option value="opakowanie">Opakowanie</option>
                    </select>
@@ -246,7 +276,7 @@ export default function ModelDetailsPage() {
 
                 <span className="font-semibold text-slate-500">Kategoria:</span>
                 {isEditMode ? (
-                   <select {...register('id_kategorii')} className="border border-slate-200 rounded px-1 py-0.5 text-xs outline-none">
+                   <select {...register('id_kategorii')} className="border border-slate-200 rounded px-1 py-0.5 text-xs outline-none focus:border-sky-500">
                      <option value="">Wybierz...</option>
                      {kategorie.map(k => <option key={k.id} value={k.id}>{k.nazwa}</option>)}
                    </select>
@@ -259,19 +289,19 @@ export default function ModelDetailsPage() {
             <h3 className="text-sm font-bold text-slate-700 mb-3 ml-20">Wymiary [cm]</h3>
             <div className="grid grid-cols-[120px_1fr] gap-y-1.5 text-sm">
               <span className="text-right text-slate-500 font-semibold pr-3">Szerokość:</span>
-              {isEditMode ? <input {...register('szerokosc')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs"/> : <span className="font-medium text-slate-800">{modelData?.szerokosc || '0.00'} cm</span>}
+              {isEditMode ? <input {...register('szerokosc')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs focus:border-sky-500 outline-none"/> : <span className="font-medium text-slate-800">{modelData?.szerokosc || '0.00'} cm</span>}
               
               <span className="text-right text-slate-500 font-semibold pr-3">Głębokość:</span>
-              {isEditMode ? <input {...register('glebokosc')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs"/> : <span className="font-medium text-slate-800">{modelData?.glebokosc || '0.00'} cm</span>}
+              {isEditMode ? <input {...register('glebokosc')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs focus:border-sky-500 outline-none"/> : <span className="font-medium text-slate-800">{modelData?.glebokosc || '0.00'} cm</span>}
               
               <span className="text-right text-slate-500 font-semibold pr-3">Wysokość:</span>
-              {isEditMode ? <input {...register('wysokosc')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs"/> : <span className="font-medium text-slate-800">{modelData?.wysokosc || '0.00'} cm</span>}
+              {isEditMode ? <input {...register('wysokosc')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs focus:border-sky-500 outline-none"/> : <span className="font-medium text-slate-800">{modelData?.wysokosc || '0.00'} cm</span>}
               
               <span className="text-right text-slate-500 font-semibold pr-3">Waga[kg]:</span>
-              {isEditMode ? <input {...register('waga')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs"/> : <span className="font-medium text-slate-800">{modelData?.waga || '0.00'} kg</span>}
+              {isEditMode ? <input {...register('waga')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs focus:border-sky-500 outline-none"/> : <span className="font-medium text-slate-800">{modelData?.waga || '0.00'} kg</span>}
               
               <span className="text-right text-slate-500 font-semibold pr-3">Pobór prądu [W]:</span>
-              {isEditMode ? <input {...register('pobor_pradu')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs"/> : <span className="font-medium text-slate-800">{modelData?.pobor_pradu || '0.00'} W</span>}
+              {isEditMode ? <input {...register('pobor_pradu')} type="number" step="0.01" className="border border-slate-200 w-24 px-1 rounded text-xs focus:border-sky-500 outline-none"/> : <span className="font-medium text-slate-800">{modelData?.pobor_pradu || '0.00'} W</span>}
             </div>
           </div>
 
@@ -285,7 +315,7 @@ export default function ModelDetailsPage() {
               <span className="font-bold text-red-500">{inService} szt.</span>
 
               <span className="text-right text-slate-500 font-semibold pr-3">Miejsce w mag:</span>
-              {isEditMode ? <input {...register('miejsce_w_mag')} className="border border-slate-200 w-24 px-1 rounded text-xs uppercase"/> : <span className="font-bold text-slate-600 uppercase">{modelData?.miejsce_w_mag || '-'}</span>}
+              {isEditMode ? <input {...register('miejsce_w_mag')} className="border border-slate-200 w-24 px-1 rounded text-xs uppercase focus:border-sky-500 outline-none"/> : <span className="font-bold text-slate-600 uppercase">{modelData?.miejsce_w_mag || '-'}</span>}
             </div>
           </div>
 
@@ -294,23 +324,23 @@ export default function ModelDetailsPage() {
             <div className="text-sm flex flex-col gap-2">
               <div className="flex items-center gap-2">
                  <span className="text-slate-500 font-semibold">Kod kreskowy:</span>
-                 {isEditMode ? <input {...register('kod_kreskowy')} className="border border-slate-200 w-32 px-1 rounded text-xs"/> : <span className="font-mono text-slate-800">{modelData?.kod_kreskowy || '-'}</span>}
+                 {isEditMode ? <input {...register('kod_kreskowy')} className="border border-slate-200 w-32 px-1 rounded text-xs focus:border-sky-500 outline-none"/> : <span className="font-mono text-slate-800">{modelData?.kod_kreskowy || '-'}</span>}
               </div>
             </div>
           </div>
         </div>
 
-        {/* AKCJE DODATKOWE (Zapisz dla Modele, Generuj kody itp) */}
         {isEditMode && (
           <div className="mt-6 flex justify-end gap-3 pb-6 border-b border-slate-200">
             <button type="button" onClick={() => {setIsEditMode(false); reset(modelData);}} className="px-6 py-2 border border-slate-300 rounded shadow-sm text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Anuluj</button>
-            <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 bg-emerald-500 text-white px-8 py-2 rounded shadow-md text-sm font-bold hover:bg-emerald-600 transition disabled:opacity-50">
+            <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 bg-[#00B5B5] text-white px-8 py-2 rounded shadow-md text-sm font-bold hover:bg-teal-400 transition disabled:opacity-50">
               {isSubmitting ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>}
               Zapisz model
             </button>
           </div>
         )}
 
+        {/* UTILITIES / ACTION BAR */}
         <div className="mt-4 flex flex-wrap gap-3">
           <button type="button" className="px-4 py-2 border border-slate-300 text-slate-600 font-semibold text-xs rounded shadow-sm hover:bg-slate-50">Zarządzaj tagami</button>
           <div className="w-full h-0"></div>
@@ -320,7 +350,7 @@ export default function ModelDetailsPage() {
           <button type="button" className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 font-semibold text-xs rounded shadow-sm hover:bg-slate-50"><Printer size={14}/> Generuj naklejki QR (A4)</button>
         </div>
 
-        {/* ZAKŁADKI */}
+        {/* TABS */}
         <div className="mt-8 border-b border-slate-200">
            <div className="flex overflow-x-auto custom-scrollbar">
              {TABS.map(tab => {
@@ -341,11 +371,11 @@ export default function ModelDetailsPage() {
            </div>
         </div>
 
+        {/* ------------------------------------------------------------- */}
         {/* ZAWARTOŚĆ ZAKŁADKI: EGZEMPLARZE */}
+        {/* ------------------------------------------------------------- */}
         {activeTab === 'egzemplarze' && (
           <div className="mt-6 border border-slate-200 rounded-lg shadow-sm bg-white overflow-hidden">
-             
-             {/* Pasek akcji masowych na egzemplarzach */}
              <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="relative">
@@ -375,7 +405,7 @@ export default function ModelDetailsPage() {
                      <th className="p-3 w-10">
                        <input 
                          type="checkbox" 
-                         className="rounded border-slate-300 cursor-pointer" 
+                         className="rounded border-slate-300 cursor-pointer text-sky-600" 
                          checked={modelData?.egzemplarze?.length > 0 && selectedItems.length === modelData?.egzemplarze?.length}
                          onChange={(e) => toggleSelectAll(e.target.checked)}
                        />
@@ -394,11 +424,11 @@ export default function ModelDetailsPage() {
                  </thead>
                  <tbody className="divide-y divide-slate-100 bg-white">
                    {modelData?.egzemplarze?.map((egz: any) => (
-                     <tr key={egz.id} className={`${selectedItems.includes(egz.id) ? 'bg-blue-50/50' : 'hover:bg-slate-50'} transition`}>
+                     <tr key={egz.id} className={`${selectedItems.includes(egz.id) ? 'bg-sky-50/50' : 'hover:bg-slate-50'} transition`}>
                         <td className="p-3">
                           <input 
                             type="checkbox" 
-                            className="rounded border-slate-300 cursor-pointer"
+                            className="rounded border-slate-300 cursor-pointer text-sky-600"
                             checked={selectedItems.includes(egz.id)}
                             onChange={() => toggleSelect(egz.id)}
                           />
@@ -452,17 +482,29 @@ export default function ModelDetailsPage() {
                         </td>
                      </tr>
                    ))}
+                   {(!modelData?.egzemplarze || modelData.egzemplarze.length === 0) && !isNew && (
+                     <tr>
+                        <td colSpan={11} className="p-6 text-center text-slate-400 text-sm">Brak utworzonych egzemplarzy dla tego modelu. Kliknij "Dodaj egzemplarz" powyżej.</td>
+                     </tr>
+                   )}
+                   {isNew && (
+                     <tr>
+                        <td colSpan={11} className="p-6 text-center text-slate-400 text-sm">Najpierw zapisz model sprzętu (górny przycisk Zapisz), aby móc do niego dodać fizyczne egzemplarze.</td>
+                     </tr>
+                   )}
                  </tbody>
                </table>
              </div>
           </div>
         )}
+
+        {/* ------------------------------------------------------------- */}
         {/* ZAWARTOŚĆ ZAKŁADKI: STAWKI */}
+        {/* ------------------------------------------------------------- */}
         {activeTab === 'stawki' && (
           <div className="mt-6 border border-slate-200 rounded-lg shadow-sm bg-white overflow-hidden p-6">
-            <h3 className="text-[15px] font-bold text-slate-800 mb-4">Stawki</h3>
+            <h3 className="text-[15px] font-bold text-slate-800 mb-4">Stawki Cennika</h3>
             
-            {/* Odsłonięty Formularz szybkiego dodawania */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
               <div className="grid grid-cols-5 gap-4 items-end">
                  <div>
@@ -498,16 +540,15 @@ export default function ModelDetailsPage() {
                        mnoz_koszt: (document.getElementById('new_mnoz') as HTMLInputElement).checked
                      };
                      await api.post(`/api/magazyn/modele/${modelData.id}/stawki`, payload);
-                     fetchModelData(); // Przeładuj
+                     fetchModelData(); 
                    }}
-                   className="border border-emerald-500 text-emerald-600 font-bold px-6 py-2 rounded text-sm hover:bg-emerald-50 transition shadow-sm"
+                   className="border border-[#00B5B5] text-[#00B5B5] font-bold px-6 py-2 rounded text-sm hover:bg-sky-50 transition shadow-sm"
                  >
-                   Dodaj zapisz
+                   Dodaj stawkę
                  </button>
               </div>
             </div>
 
-            {/* Lista zapisanych stawek */}
             <div className="border border-slate-200 rounded-lg overflow-hidden">
                <table className="w-full text-left text-sm whitespace-nowrap">
                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-700">
@@ -526,7 +567,7 @@ export default function ModelDetailsPage() {
                      <tr key={cena.id} className="hover:bg-slate-50 transition">
                        <td className="p-3"><List size={16} className="text-slate-300 cursor-move"/></td>
                        <td className="p-3 font-semibold text-slate-700">{cena.nazwa_stawki}</td>
-                       <td className="p-3 font-mono">{cena.cena_netto || '0.00'} PLN</td>
+                       <td className="p-3 font-mono text-slate-800">{cena.cena_netto || '0.00'} PLN</td>
                        <td className="p-3 text-slate-500">{cena.koszt ? `${cena.koszt} PLN` : '-'}</td>
                        <td className="p-3 text-slate-500">{cena.nazwa_kosztu || '-'}</td>
                        <td className="p-3 text-center">
@@ -542,7 +583,7 @@ export default function ModelDetailsPage() {
                        </td>
                      </tr>
                    ))}
-                   {(!modelData?.ceny || modelData.ceny.length === 0) && (
+                   {(!modelData?.stawki || modelData.stawki.length === 0) && (
                      <tr><td colSpan={7} className="p-6 text-center text-slate-400 text-sm">Brak zdefiniowanych stawek. Utwórz pierwszą powyżej.</td></tr>
                    )}
                  </tbody>
@@ -551,8 +592,71 @@ export default function ModelDetailsPage() {
           </div>
         )}
 
-        {/* ... (Domyślny fallback dla pustych tabów na dole) */}
-        {activeTab !== 'egzemplarze' && activeTab !== 'stawki' && (
+        {/* ------------------------------------------------------------- */}
+        {/* ZAWARTOŚĆ ZAKŁADKI: SERWIS */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'serwis' && (
+          <div className="mt-6 border border-slate-200 rounded-lg shadow-sm bg-white overflow-hidden p-6">
+            <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+               <h3 className="text-[15px] font-bold text-slate-800 flex items-center gap-2">
+                 <Wrench size={18} className="text-sky-500"/> Zgłoszenia serwisowe sprzętu: {modelData?.nazwa}
+               </h3>
+               <button type="button" onClick={() => router.push('/dashboard/service')} className="text-xs font-bold text-sky-600 border border-sky-200 px-3 py-1.5 rounded hover:bg-sky-50 transition">
+                 Zarządzaj całym serwisem
+               </button>
+            </div>
+
+            {isLoadingSerwisy ? (
+              <div className="flex justify-center p-8 text-slate-400"><Loader2 className="animate-spin w-6 h-6"/></div>
+            ) : (
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                 <table className="w-full text-left text-sm whitespace-nowrap">
+                   <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-700">
+                     <tr>
+                       <th className="p-3">Data zgłoszenia</th>
+                       <th className="p-3">Sprzęt (Nr/SN)</th>
+                       <th className="p-3">Zgłaszający</th>
+                       <th className="p-3">Tytuł usterki</th>
+                       <th className="p-3">Status serwisu</th>
+                       <th className="p-3 text-right">Akcje</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-100">
+                     {serwisy.map(s => {
+                       const statusStyle = getServiceStatusColor(s.status?.nazwa, s.status?.kolor);
+                       return (
+                         <tr 
+                          key={s.id} 
+                          className="hover:bg-sky-50/30 transition cursor-pointer" 
+                          onClick={() => router.push(`/dashboard/service/${s.id}`)}
+                         >
+                           <td className="p-3 text-slate-500">{new Date(s.data_zgloszenia).toLocaleDateString('pl-PL')}</td>
+                           <td className="p-3 font-mono text-slate-700 font-bold">{s.egzemplarz?.numer_urzadzenia || s.egzemplarz?.sn || '-'}</td>
+                           <td className="p-3 text-slate-600">{s.zglosil?.imie} {s.zglosil?.nazwisko?.charAt(0)}.</td>
+                           <td className="p-3 text-sky-600 font-medium">{s.tytul}</td>
+                           <td className="p-3">
+                             <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${statusStyle}`}>
+                               {s.status?.nazwa || 'Nowe'}
+                             </span>
+                           </td>
+                           <td className="p-3 text-right">
+                             <ChevronRight size={16} className="inline text-slate-400"/>
+                           </td>
+                         </tr>
+                       );
+                     })}
+                     {serwisy.length === 0 && (
+                       <tr><td colSpan={6} className="p-6 text-center text-slate-400 text-sm">Brak zgłoszeń serwisowych dla tego modelu. Oby tak dalej!</td></tr>
+                     )}
+                   </tbody>
+                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Domyślny fallback dla pustych tabów na dole */}
+        {activeTab !== 'egzemplarze' && activeTab !== 'stawki' && activeTab !== 'serwis' && (
            <div className="mt-10 text-center text-slate-400 text-sm font-medium">
              Sekcja <span className="uppercase text-slate-600 font-bold">{activeTab}</span> w przygotowaniu.
            </div>

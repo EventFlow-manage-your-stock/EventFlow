@@ -8,11 +8,13 @@ import { WydarzeniaModule } from './wydarzenia/wydarzenia.module';
 import { TenantMiddleware } from './prisma/tenant.middleware';
 import { SlownikiModule } from './slowniki/slowniki.module';
 import { MagazynModule } from './magazyn/magazyn.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { SerwisModule } from './serwis/serwis.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
       isGlobal: true,
-    }),PrismaModule, AuthModule, WydarzeniaModule, SlownikiModule, MagazynModule],
+    }),PrismaModule, AuthModule, WydarzeniaModule, SlownikiModule, MagazynModule, DashboardModule, SerwisModule],
   controllers: [AppController],
   providers: [AppService],
 })

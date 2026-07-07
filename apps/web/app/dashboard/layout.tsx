@@ -5,13 +5,14 @@ import {
   Home, CheckSquare, Calendar, CalendarClock, Star, Users, MapPin, 
   Globe, Box, Wrench, UsersRound, Truck, Settings, ChevronDown, 
   Search, Bell, LogOut, Menu, Plus, Moon, Sun, CalendarDays, FileText, 
-  AlertTriangle, BarChart3, FileCheck, DollarSign, History, Briefcase, HelpCircle,
-  ArrowRight, ArrowLeft, Monitor, Plug, Layers, Paperclip, Server
+  AlertTriangle, BarChart3, FileCheck, DollarSign, History, Briefcase,
+  ArrowRight, ArrowLeft, Monitor, Plug, Layers, Paperclip, Server, Building2, CheckCircle2
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
+import Image from 'next/image';
 
-// Rozbudowana konfiguracja menu, wspierająca obiekty w subItems
+// Istniejąca konfiguracja menu (nietknięta)
 const menuConfig = [
   { icon: Home, label: 'Kokpit', isExpandable: false, href: '/dashboard' },
   { icon: CheckSquare, label: 'Zadania', badge: '0', isExpandable: false },
@@ -41,7 +42,7 @@ const menuConfig = [
     subItems: [
       { label: 'Magazyn wewnętrzny', href: '/dashboard/warehouse', icon: Home },
       { label: 'Magazyn dostawców', icon: Globe },
-      { label: 'Ceny', icon: DollarSign },
+      { label: 'Ceny', href: '/dashboard/warehouse/pricing', icon: DollarSign },
       { label: 'Wydanie z magazynu', icon: ArrowRight },
       { label: 'Przyjęcie do magazynu', icon: ArrowLeft },
       { label: 'Niezwrócony sprzęt', icon: ArrowRight },
@@ -55,7 +56,14 @@ const menuConfig = [
       { label: 'Baza sprzętu', icon: Server },
     ] 
   },
-  { icon: Wrench, label: 'Serwis', badge: '1', isExpandable: true, subItems: [{label: 'W naprawie'}, {label: 'Zlecenia'}] },
+  { 
+    icon: Wrench, label: 'Serwis', badge: '1', isExpandable: true, 
+    subItems: 
+      [
+        {label: 'W naprawie', href: '/dashboard/service', icon: Wrench}, 
+        {label: 'Statusy serwisowe', icon: CheckCircle2},
+      ] 
+  },
   { icon: UsersRound, label: 'Użytkownicy', isExpandable: true, subItems: [{label: 'Lista'}, {label: 'Uprawnienia'}] },
   { icon: Truck, label: 'Flota', isExpandable: true, subItems: [{label: 'Pojazdy'}, {label: 'Rezerwacje'}] },
   { icon: Settings, label: 'Ustawienia', isExpandable: true, subItems: [{label: 'Ogólne'}, {label: 'Słowniki'}] },
@@ -69,17 +77,14 @@ const menuConfig = [
   { icon: Briefcase, label: 'Toolbox', isExpandable: true, subItems: [{label: 'Narzędzia'}] },
 ];
 
-// Helper icon component
 function ListIcon(props: any) {
   return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>;
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // Dla dema Magazyn jest otwarty domyślnie, aby było od razu widać zmiany
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDark, setIsDark] = useState(false); 
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ 'Magazyn': true });
-  
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ 'Magazyn': false });
   const [isMounted, setIsMounted] = useState(false);
   
   const user = useAuthStore((state) => state.user);
@@ -89,9 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     setIsMounted(true);
-    if (!user) {
-      router.push('/login');
-    }
+    if (!user) router.push('/login');
   }, [user, router]);
 
   const handleLogout = () => {
@@ -103,44 +106,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
   };
 
-  if (!isMounted || !user) {
-    return <div className="h-screen w-screen bg-slate-50 dark:bg-slate-950"></div>;
-  }
+  if (!isMounted || !user) return <div className="h-screen w-screen bg-[#F4F7F9]"></div>;
 
   return (
     <div className={`${isDark ? 'dark' : ''}`}>
-      <div className="flex h-screen bg-slate-50 text-slate-800 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-300">
+      <div className="flex h-screen bg-[#F4F7F9] text-slate-800 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-300 font-sans">
         
-        {/* SIDEBAR */}
+        {/* SIDEBAR - Ciemny motyw z projektu */}
         <aside 
-          className={`${isSidebarOpen ? 'w-[280px]' : 'w-20'} 
-          flex flex-col bg-white border-r border-slate-200 transition-all duration-300 z-20
-          dark:bg-slate-900 dark:border-white/5 shadow-sm`}
+          className={`${isSidebarOpen ? 'w-[260px]' : 'w-20'} 
+          flex flex-col bg-[#11282D] text-slate-300 transition-all duration-300 z-20 shadow-xl`}
         >
-          <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-slate-100 dark:border-white/5">
-            {isSidebarOpen && <span className="text-xl font-bold text-slate-900 dark:text-white tracking-wider">Event<span className="text-blue-500">Flow</span></span>}
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 dark:text-slate-400 dark:hover:bg-white/10 transition">
-              <Menu size={20} />
-            </button>
+          {/* Logo Section */}
+          <div className="flex h-20 shrink-0 items-center justify-between px-6 border-b border-white/5">
+            {isSidebarOpen ? (
+              // Tu załaduje się logo z pliku /public/logo-light.svg
+              <div className="flex items-center gap-2">
+                 {/* Zastąp ten div własnym <Image src="/logo-light.svg" alt="EventFlow" width={140} height={40} /> */}
+                 <div className="w-8 h-8 bg-[#00B5B5] rounded flex items-center justify-center text-white font-black text-xl italic">E</div>
+                 <span className="text-xl font-bold text-white tracking-wider">Event<span className="text-[#00B5B5]">Flow</span></span>
+              </div>
+            ) : (
+              <div className="w-8 h-8 bg-[#00B5B5] rounded mx-auto flex items-center justify-center text-white font-black text-xl italic">E</div>
+            )}
           </div>
 
-          {isSidebarOpen && (
-            <div className="flex shrink-0 items-center gap-3 p-4 border-b border-slate-100 dark:border-white/5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 font-bold text-white shadow-md">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-              <div className="flex flex-col overflow-hidden">
-                <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">{user?.email}</span>
-                <span className="text-xs text-slate-500">{user?.role}</span>
-              </div>
-            </div>
-          )}
-
           {/* Menu Items */}
-          <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar bg-white text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-            <ul className="space-y-0.5 px-3 pb-4">
+          <nav className="flex-1 overflow-y-auto py-6 custom-scrollbar-dark">
+            <ul className="space-y-1.5 px-4">
               {menuConfig.map((item) => {
-                const isActive = item.href === pathname;
+                const isActive = item.href === pathname || (item.isExpandable && item.subItems?.some(s => s.href === pathname));
 
                 return (
                   <li key={item.label}>
@@ -149,24 +144,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         if (item.isExpandable) toggleMenu(item.label);
                         if (item.href) router.push(item.href);
                       }}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors 
-                      ${isActive ? 'bg-blue-50 text-blue-700 dark:bg-blue-600/10 dark:text-blue-400 font-semibold' : 'hover:bg-slate-50 text-slate-600 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-[13px] transition-all duration-200 
+                      ${isActive ? 'bg-[#00B5B5] text-white font-bold shadow-md shadow-teal-900/20' : 'hover:bg-white/5 text-slate-400 hover:text-white font-medium'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <item.icon size={18} className={isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'} />
+                        <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400'} />
                         {isSidebarOpen && <span>{item.label}</span>}
                       </div>
                       {isSidebarOpen && (
                         <div className="flex items-center gap-2">
-                          {item.badge && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">{item.badge}</span>}
-                          {item.isExpandable && <ChevronDown size={16} className={`transition-transform duration-200 text-slate-400 ${openMenus[item.label] ? 'rotate-180' : ''}`} />}
+                          {item.badge && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-300'}`}>{item.badge}</span>}
+                          {item.isExpandable && <ChevronDown size={14} className={`transition-transform duration-200 opacity-70 ${openMenus[item.label] ? 'rotate-180' : ''}`} />}
                         </div>
                       )}
                     </button>
                     
                     {/* Podmenu */}
                     {isSidebarOpen && item.isExpandable && openMenus[item.label] && (
-                      <ul className="mt-1 mb-2 space-y-0.5 pl-4 pr-2 bg-slate-50/50 py-2 rounded-lg border border-slate-100 dark:bg-slate-800/30 dark:border-slate-800/50">
+                      <ul className="mt-1.5 mb-3 space-y-1 pl-4 pr-1">
                         {item.subItems?.map((subItem: any) => {
                           const SubIcon = subItem.icon;
                           const isSubActive = subItem.href === pathname;
@@ -175,12 +170,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <li key={subItem.label}>
                               <button 
                                 onClick={() => subItem.href && router.push(subItem.href)}
-                                className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors
-                                  ${isSubActive ? 'bg-blue-100 text-blue-700 font-semibold dark:bg-blue-500/20 dark:text-blue-300' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'}
+                                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] transition-colors
+                                  ${isSubActive ? 'text-[#00B5B5] font-bold bg-white/5' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}
                                 `}
                               >
-                                {SubIcon && <SubIcon size={14} className={isSubActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'} />}
-                                {!SubIcon && <div className="w-3.5" />}
+                                {SubIcon && <SubIcon size={14} className={isSubActive ? 'text-[#00B5B5]' : 'text-slate-500'} />}
+                                {!SubIcon && <div className="w-[14px]" />}
                                 {subItem.label}
                               </button>
                             </li>
@@ -193,35 +188,61 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               })}
             </ul>
           </nav>
+
+          {/* User Profile at bottom */}
+          {isSidebarOpen && (
+            <div className="shrink-0 p-4 border-t border-white/5 bg-[#0D1F23]">
+              <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition cursor-pointer border border-white/5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-[#00B5B5] to-teal-400 font-bold text-white shadow-md">
+                  {user?.email?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div className="flex flex-col overflow-hidden flex-1">
+                  <span className="truncate text-xs font-bold text-white">{user?.email || 'Użytkownik'}</span>
+                  <span className="text-[10px] text-slate-400 truncate flex items-center gap-1"><Building2 size={10}/> {user?.role || 'Firma sp z.o.o.'}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </aside>
 
         {/* GŁÓWNA ZAWARTOŚĆ */}
         <main className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-16 shrink-0 items-center justify-between bg-white px-6 border-b border-slate-200 z-10 dark:bg-slate-900/30 dark:border-white/5">
-            <div className="flex w-full max-w-md items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 transition focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-              <Search size={16} className="text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Wpisz co najmniej 3 znaki, aby wyszukać..." 
-                className="w-full bg-transparent text-sm text-slate-900 placeholder-slate-400 outline-none"
-              />
+          
+          {/* HEADER GÓRNY */}
+          <header className="flex h-20 shrink-0 items-center justify-between bg-transparent px-8 z-10">
+            <div className="flex items-center gap-4 w-full max-w-xl">
+               <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-full hover:bg-white text-slate-500 shadow-sm bg-white/50 backdrop-blur-sm transition border border-slate-200/50">
+                <Menu size={18} />
+              </button>
+              <div className="flex w-full items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition focus-within:border-[#00B5B5] focus-within:ring-1 focus-within:ring-[#00B5B5]">
+                <Search size={18} className="text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Szukaj eventu, sprzętu, kontrahenta, oferty..." 
+                  className="w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none font-medium"
+                />
+              </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setIsDark(!isDark)} 
-                className="p-2 text-slate-500 hover:text-blue-600 transition"
-              >
+            <div className="flex items-center gap-3">
+              <button onClick={() => setIsDark(!isDark)} className="p-2.5 rounded-full text-slate-500 hover:text-[#00B5B5] hover:bg-white shadow-sm bg-white/50 border border-slate-200/50 transition">
                 {isDark ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button className="p-2 text-slate-500 hover:text-slate-900 transition"><Bell size={18} /></button>
-              <button onClick={handleLogout} className="flex items-center gap-2 p-2 text-sm text-slate-500 hover:text-red-600 transition">
-                <LogOut size={16} /> Wyloguj
+              <button className="relative p-2.5 rounded-full text-slate-500 hover:text-slate-900 hover:bg-white shadow-sm bg-white/50 border border-slate-200/50 transition">
+                <Bell size={18} />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              </button>
+              <div className="w-px h-8 bg-slate-200 mx-1"></div>
+              <button className="flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-600 hover:text-[#00B5B5] shadow-sm transition">
+                <Plus size={20} />
+              </button>
+              <button onClick={handleLogout} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#11282D] text-white text-sm font-bold shadow-md hover:bg-slate-800 transition">
+                Wyloguj
               </button>
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar bg-slate-50 dark:bg-slate-950">
+          <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
             {children}
           </div>
         </main>

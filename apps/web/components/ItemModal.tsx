@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Save, Loader2, Bold, Italic, Strikethrough, Link as LinkIcon, List, ListOrdered } from 'lucide-react';
+import { X, Save, Loader2, Bold, Italic, Strikethrough, Link as LinkIcon, List, ListOrdered, AlertTriangle } from 'lucide-react';
 import { api } from '../lib/api';
 
 interface ItemModalProps {
@@ -15,10 +15,15 @@ interface ItemModalProps {
 }
 
 export default function ItemModal({ isOpen, onClose, onSuccess, modelId, modelName, initialData }: ItemModalProps) {
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
+  const { register, handleSubmit, reset, watch, formState: { isSubmitting } } = useForm();
   const [magazyny, setMagazyny] = useState<any[]>([]);
   const [dostepneCase, setDostepneCase] = useState<any[]>([]);
+  const [statusySerwisowe, setStatusySerwisowe] = useState<any[]>([]);
   const isEdit = !!initialData;
+
+  // Nasłuchiwanie wyboru statusu z listy
+  const watchStatus = watch('status_serwisowy');
+  const showServiceFields = watchStatus && !['Działa', 'Naprawiony', ''].includes(watchStatus);
 
   useEffect(() => {
     if (isOpen) {
@@ -29,23 +34,21 @@ export default function ItemModal({ isOpen, onClose, onSuccess, modelId, modelNa
           data_produkcji: initialData.data_produkcji ? initialData.data_produkcji.split('T')[0] : '',
         });
       } else {
-        reset({
-          nazwa: modelName,
-          status_serwisowy: 'Działa',
-          pakowany_pojedynczo: false
-        });
+        reset({ nazwa: modelName, status_serwisowy: 'Działa', pakowany_pojedynczo: false });
       }
     }
   }, [isOpen, initialData, modelName]);
 
   const fetchDictionaries = async () => {
     try {
-      const [magazynyRes, casesRes] = await Promise.all([
+      const [magazynyRes, casesRes, statusyRes] = await Promise.all([
         api.get('/api/magazyn/slowniki/magazyny'),
-        api.get('/api/magazyn/slowniki/cases')
+        api.get('/api/magazyn/slowniki/cases'),
+        api.get('/api/serwis/statusy') // Pobieramy słownik statusów serwisowych
       ]);
       setMagazyny(magazynyRes.data);
       setDostepneCase(casesRes.data);
+      setStatusySerwisowe(statusyRes.data);
     } catch (error) {
       console.error('Błąd pobierania słowników:', error);
     }
@@ -70,6 +73,12 @@ export default function ItemModal({ isOpen, onClose, onSuccess, modelId, modelNa
         opis: cleanString(data.opis),
         status_serwisowy: cleanString(data.status_serwisowy) || 'Działa',
         kod_kreskowy: cleanString(data.kod_kreskowy),
+        
+        // Pola automatycznego zgłoszenia (wysłane na backend)
+        tworz_zgloszenie: showServiceFields,
+        tytul_usterki: cleanString(data.tytul_usterki),
+        id_statusu_serwisu: cleanNumber(data.id_statusu_serwisu),
+        opis_usterki: cleanString(data.opis_usterki)
       };
 
       if (isEdit) {
@@ -77,7 +86,6 @@ export default function ItemModal({ isOpen, onClose, onSuccess, modelId, modelNa
       } else {
         await api.post(`/api/magazyn/modele/${modelId}/egzemplarze`, payload);
       }
-      
       onSuccess();
       onClose();
     } catch (error) {
@@ -96,9 +104,7 @@ export default function ItemModal({ isOpen, onClose, onSuccess, modelId, modelNa
           <h2 className="text-lg font-bold text-slate-800">
             {isEdit ? 'Edycja egzemplarza' : 'Dodaj nowy egzemplarz'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
-            <X size={20} />
-          </button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition"><X size={20} /></button>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/50">
@@ -143,23 +149,6 @@ export default function ItemModal({ isOpen, onClose, onSuccess, modelId, modelNa
                 <label className="block text-[13px] font-bold text-slate-600 mb-1.5">Miejsce w magazynie</label>
                 <input type="text" {...register('miejsce_w_mag')} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:border-blue-500 outline-none text-sm bg-blue-50/50 uppercase" />
               </div>
-
-              <div>
-                <label className="block text-[13px] font-bold text-slate-600 mb-1.5">Opis (Notatki usterkowe/uwagi)</label>
-                <div className="border border-slate-300 rounded-md overflow-hidden bg-white">
-                  <div className="flex items-center gap-1 p-2 border-b border-slate-200">
-                    <button type="button" className="p-1 hover:bg-slate-100 rounded text-slate-500"><Bold size={14}/></button>
-                    <button type="button" className="p-1 hover:bg-slate-100 rounded text-slate-500"><Italic size={14}/></button>
-                    <button type="button" className="p-1 hover:bg-slate-100 rounded text-slate-500"><Strikethrough size={14}/></button>
-                    <div className="w-px h-4 bg-slate-300 mx-1"></div>
-                    <button type="button" className="p-1 hover:bg-slate-100 rounded text-slate-500"><List size={14}/></button>
-                    <button type="button" className="p-1 hover:bg-slate-100 rounded text-slate-500"><ListOrdered size={14}/></button>
-                    <div className="w-px h-4 bg-slate-300 mx-1"></div>
-                    <button type="button" className="p-1 hover:bg-slate-100 rounded text-slate-500"><LinkIcon size={14}/></button>
-                  </div>
-                  <textarea {...register('opis')} rows={3} placeholder="np. Pęknięta obudowa z prawej strony" className="w-full p-3 text-sm outline-none resize-none" />
-                </div>
-              </div>
             </div>
 
             {/* KOLUMNA PRAWA */}
@@ -170,60 +159,67 @@ export default function ItemModal({ isOpen, onClose, onSuccess, modelId, modelNa
               </div>
 
               <div>
-                <label className="block text-[13px] font-bold text-slate-600 mb-1.5">Cena zakupu [PLN]</label>
-                <input type="number" step="0.01" {...register('cena_zakupu')} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:border-blue-500 outline-none text-sm bg-white" />
-              </div>
-
-              <div>
                 <label className="block text-[13px] font-bold text-slate-600 mb-1.5">Status Serwisowy (Kondycja)</label>
-                <select {...register('status_serwisowy')} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:border-blue-500 outline-none text-sm bg-white cursor-pointer font-medium">
-                  <option value="Działa" className="text-slate-800">Działa</option>
-                  <option value="Wymaga serwisu (działa)" className="text-slate-800">Wymaga serwisu (działa)</option>
-                  <option value="Wymaga serwisu (nie działa)" className="text-slate-800">Wymaga serwisu (nie działa)</option>
-                  <option value="W serwisie" className="text-slate-800">W serwisie</option>
-                  <option value="Naprawiony" className="text-slate-800">Naprawiony</option>
+                <select {...register('status_serwisowy')} className="w-full px-3 py-2 border-2 border-slate-300 rounded-md focus:border-sky-500 outline-none text-sm bg-white cursor-pointer font-medium shadow-sm">
+                  <option value="Działa" className="text-emerald-700 font-bold">Działa</option>
+                  <option value="Wymaga serwisu (działa)" className="text-amber-600 font-bold">Wymaga serwisu (działa)</option>
+                  <option value="Wymaga serwisu (nie działa)" className="text-red-600 font-bold">Wymaga serwisu (nie działa)</option>
+                  <option value="W serwisie" className="text-sky-600 font-bold">W serwisie</option>
+                  <option value="Naprawiony" className="text-emerald-600 font-bold">Naprawiony</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-[13px] font-bold text-sky-600 mb-1.5">Włóż do skrzyni (Przypisz Case)</label>
-                <select 
-                  {...register('id_case')} 
-                  className="w-full px-3 py-2 border-2 border-sky-100 rounded-md focus:border-sky-500 outline-none text-sm bg-white cursor-pointer font-medium shadow-sm"
-                >
+                <select {...register('id_case')} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white cursor-pointer shadow-sm">
                   <option value="">Luzem (Brak skrzyni)</option>
-                  {dostepneCase
-                    .filter(c => c.id !== initialData?.id) // Nie można przypisać case'a do samego siebie
-                    .map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.model?.nazwa} {c.numer_urzadzenia ? `[#${c.numer_urzadzenia}]` : ''} {c.sn ? `(SN: ${c.sn})` : ''} - W środku: {c._count?.zawartosc_case || 0} szt.
-                    </option>
+                  {dostepneCase.filter(c => c.id !== initialData?.id).map(c => (
+                    <option key={c.id} value={c.id}>{c.model?.nazwa} {c.numer_urzadzenia ? `[#${c.numer_urzadzenia}]` : ''} - W środku: {c._count?.zawartosc_case || 0} szt.</option>
                   ))}
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1">Zeskanowanie skrzyni w przyszłości wyda całą jej zawartość.</p>
-              </div>
-              
-              <div>
-                <label className="block text-[13px] font-bold text-slate-600 mb-1.5">Zewnętrzny Kod Kreskowy / QR</label>
-                <input type="text" {...register('kod_kreskowy')} placeholder="Zeskanuj czytnikiem..." className="w-full px-3 py-2 border border-slate-300 rounded-md focus:border-blue-500 outline-none text-sm font-mono bg-blue-50/50" />
               </div>
 
-              <div className="pt-6 flex justify-end">
-                <div className="w-32 h-32 bg-white border border-slate-200 p-2 shadow-sm rounded-lg">
-                  <div className="w-full h-full bg-[url('https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg')] bg-cover opacity-80 mix-blend-multiply"></div>
-                </div>
+              <div>
+                 <label className="block text-[13px] font-bold text-slate-600 mb-1.5">Własne notatki / Uwagi ogólne</label>
+                 <textarea {...register('opis')} rows={3} placeholder="np. Odprysk na obudowie" className="w-full p-3 text-sm border border-slate-300 rounded-md outline-none focus:border-sky-500 resize-none bg-white" />
               </div>
             </div>
+
+            {/* DYNAMICZNY BLOK GENEROWANIA ZGŁOSZENIA SERWISOWEGO */}
+            {showServiceFields && (
+              <div className="col-span-1 md:col-span-2 bg-red-50/50 border border-red-200 rounded-xl p-5 mt-4 shadow-sm animate-fade-in-up">
+                 <h4 className="text-[14px] font-black text-red-600 mb-4 flex items-center gap-2">
+                   <AlertTriangle size={18} className="fill-red-100" /> Automatyczne Zgłoszenie Serwisowe
+                 </h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                   <div>
+                     <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Co się stało? (Tytuł zgłoszenia) *</label>
+                     <input type="text" {...register('tytul_usterki')} required={showServiceFields} placeholder="np. Nie działa zasilanie" className="w-full px-3 py-2 border border-red-300 rounded focus:border-red-500 outline-none text-sm bg-white" />
+                   </div>
+                   <div>
+                     <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Priorytet zlecenia *</label>
+                     <select {...register('id_statusu_serwisu')} required={showServiceFields} className="w-full px-3 py-2 border border-red-300 rounded focus:border-red-500 outline-none text-sm bg-white cursor-pointer font-semibold">
+                       <option value="">Wybierz kolejkę...</option>
+                       {statusySerwisowe.map(s => <option key={s.id} value={s.id}>{s.nazwa}</option>)}
+                     </select>
+                   </div>
+                   <div className="md:col-span-2">
+                     <label className="block text-[12px] font-bold text-slate-700 mb-1.5">Szczegóły dla serwisanta</label>
+                     <textarea {...register('opis_usterki')} rows={3} placeholder="Okoliczności powstania usterki..." className="w-full px-3 py-2 border border-red-200 rounded focus:border-red-500 outline-none text-sm bg-white resize-none" />
+                   </div>
+                 </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-8 border-t border-slate-200 pt-5">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 text-[13px] font-bold text-emerald-600 border border-emerald-500 rounded bg-white hover:bg-emerald-50 transition shadow-sm disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2.5 text-[13px] font-bold text-emerald-600 border border-emerald-500 rounded bg-white hover:bg-emerald-50 transition shadow-sm disabled:opacity-50 flex items-center gap-2"
             >
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {isEdit ? 'Zapisz zmiany' : 'Zapisz egzemplarz'}
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={16}/>}
+              {isEdit ? 'Zapisz zmiany' : 'Dodaj egzemplarz'}
             </button>
           </div>
         </form>
