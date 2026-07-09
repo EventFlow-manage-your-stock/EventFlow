@@ -33,8 +33,8 @@ export default function DashboardPage() {
     { title: 'Wydarzenia', desc: 'Kalendarz, etapy, plan realizacji i checklisty.', icon: Calendar, href: '/dashboard/calendar' },
     { title: 'Oferty', desc: 'Edycje, sale, budżety, PDF i akceptacje.', icon: FileText, href: '#' },
     { title: 'Wynajmy', desc: 'Wydania, zwroty, konflikty i kompletacja.', icon: Truck, href: '#' },
-    { title: 'Serwis', desc: 'Zgłoszenia pilne, naprawy, historia sprzętu.', icon: Wrench, href: '#' },
-    { title: 'CRM', desc: 'Kontrahenci, kontakty, miejsca i notatki.', icon: Users, href: '#' },
+    { title: 'Serwis', desc: 'Zgłoszenia pilne, naprawy, historia sprzętu.', icon: Wrench, href: '/dashboard/service' },
+    { title: 'CRM', desc: 'Kontrahenci, kontakty, miejsca i notatki.', icon: Users, href: '/dashboard/crm' },
   ];
 
   if (isLoading) {

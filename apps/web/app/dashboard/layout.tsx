@@ -15,7 +15,7 @@ import Image from 'next/image';
 // Istniejąca konfiguracja menu (nietknięta)
 const menuConfig = [
   { icon: Home, label: 'Kokpit', isExpandable: false, href: '/dashboard' },
-  { icon: CheckSquare, label: 'Zadania', badge: '0', isExpandable: false },
+  { icon: CheckSquare, label: 'Zadania', badge: '0', isExpandable: false, href: '/dashboard/tasks' },
   { icon: Calendar, label: 'Kalendarz', isExpandable: false, href: '/dashboard/calendar' },
   { icon: CalendarClock, label: 'Plan dnia', isExpandable: false },
   { 
@@ -41,10 +41,10 @@ const menuConfig = [
     icon: MapPin, label: 'Miejsca', isExpandable: true, 
     subItems: [{ label: 'Baza miejsc' }] 
   },
-  { 
-    icon: Globe, label: 'Event Network', badge: '0', isExpandable: true, 
-    subItems: [{ label: 'Sieć' }, { label: 'Udostępnione' }] 
-  },
+  // { 
+  //   icon: Globe, label: 'Event Network', badge: '0', isExpandable: true, 
+  //   subItems: [{ label: 'Sieć' }, { label: 'Udostępnione' }] 
+  // },
   { 
     icon: Box, label: 'Magazyn', isExpandable: true, 
     subItems: [
@@ -82,7 +82,7 @@ const menuConfig = [
   { icon: FileCheck, label: 'Rozliczenia', isExpandable: false },
   { icon: DollarSign, label: 'Finanse', isExpandable: true, subItems: [{label: 'Faktury'}, {label: 'Koszty'}] },
   { icon: History, label: 'Historia', isExpandable: true, subItems: [{label: 'Logi systemowe'}] },
-  { icon: Briefcase, label: 'Toolbox', isExpandable: true, subItems: [{label: 'Narzędzia'}] },
+  // { icon: Briefcase, label: 'Toolbox', isExpandable: true, subItems: [{label: 'Narzędzia'}] },
 ];
 
 function ListIcon(props: any) {
@@ -131,11 +131,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               // Tu załaduje się logo z pliku /public/logo-light.svg
               <div className="flex items-center gap-2">
                  {/* Zastąp ten div własnym <Image src="/logo-light.svg" alt="EventFlow" width={140} height={40} /> */}
-                 <div className="w-8 h-8 bg-[#00B5B5] rounded flex items-center justify-center text-white font-black text-xl italic">E</div>
-                 <span className="text-xl font-bold text-white tracking-wider">Event<span className="text-[#00B5B5]">Flow</span></span>
+                 <Image src="/eventflow_logo_dark.svg" alt="EventFlow" width={270} height={100} />
               </div>
             ) : (
-              <div className="w-8 h-8 bg-[#00B5B5] rounded mx-auto flex items-center justify-center text-white font-black text-xl italic">E</div>
+              <Image src="/eventflow_mark.svg" alt="EventFlow" width={60} height={40} />
             )}
           </div>
 

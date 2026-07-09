@@ -36,43 +36,44 @@ model Organizacja {
   data_usuniecia   DateTime?
 
   // Relacje odwrotne
-  role                Rola[]
-  uzytkownicy         Uzytkownik[]
-  uzytkownicy_role    UzytkownikRola[]
-  kontrahenci         Kontrahent[]
-  kontakty_kontr      KontaktKontrahenta[]
-  miejsca             Miejsce[]
-  magazyny            Magazyn[]
-  kategorie           Kategoria[]
-  modele_sprzetu      ModelSprzetu[]
-  egzemplarze         Egzemplarz[]
-  cenniki             Cennik[]
-  ceny_sprzetu        CenaSprzetu[]
-  typy_wydarzen       TypWydarzenia[]
-  statusy_wydarzen    StatusWydarzenia[]
-  wydarzenia          Wydarzenie[]
-  typy_etapow         TypEtapu[]
-  etapy_wydarzen      EtapWydarzenia[]
-  statusy_ofert       StatusOferty[]
-  oferty              Oferta[]
-  wersje_ofert        WersjaOferty[]
-  sekcje_ofert        SekcjaOferty[]
-  pozycje_ofert       PozycjaOferty[]
-  statusy_wynajmow    StatusWynajmu[]
-  wynajmy             Wynajem[]
-  pozycje_wynajmu     PozycjaWynajmu[]
-  statusy_serwisu     StatusSerwisu[]
-  serwisy_sprzetu     SerwisSprzetu[]
-  zalaczniki          Zalacznik[]
-  logi_zmian          LogZmian[]
+  role                  Rola[]
+  uzytkownicy           Uzytkownik[]
+  uzytkownicy_role      UzytkownikRola[]
+  kontrahenci           Kontrahent[]
+  kontakty_kontr        KontaktKontrahenta[]
+  miejsca               Miejsce[]
+  magazyny              Magazyn[]
+  kategorie             Kategoria[]
+  modele_sprzetu        ModelSprzetu[]
+  egzemplarze           Egzemplarz[]
+  cenniki               Cennik[]
+  ceny_sprzetu          CenaSprzetu[]
+  typy_wydarzen         TypWydarzenia[]
+  statusy_wydarzen      StatusWydarzenia[]
+  wydarzenia            Wydarzenie[]
+  typy_etapow           TypEtapu[]
+  etapy_wydarzen        EtapWydarzenia[]
+  statusy_ofert         StatusOferty[]
+  oferty                Oferta[]
+  wersje_ofert          WersjaOferty[]
+  sekcje_ofert          SekcjaOferty[]
+  pozycje_ofert         PozycjaOferty[]
+  statusy_wynajmow      StatusWynajmu[]
+  wynajmy               Wynajem[]
+  pozycje_wynajmu       PozycjaWynajmu[]
+  statusy_serwisu       StatusSerwisu[]
+  serwisy_sprzetu       SerwisSprzetu[]
+  zalaczniki            Zalacznik[]
+  logi_zmian            LogZmian[]
   wydarzenia_uzytkownicy WydarzenieUzytkownik[]
-  pojazdy             Pojazd[]
-  wydarzenia_pojazdy  WydarzeniePojazd[]
-  zadania             Zadanie[]
-  nieobecnosci        Nieobecnosc[]
-  statusy_magazynowe  StatusMagazynowy[]
-  statusy_ksiegowe    StatusKsiegowy[]
-  ceny_modeli          CenaModelu[]
+  pojazdy               Pojazd[]
+  wydarzenia_pojazdy    WydarzeniePojazd[]
+  zadania               Zadanie[]
+  zadania_uzytkownicy   ZadanieUzytkownik[] // Dodano relację odwrotną
+  nieobecnosci          Nieobecnosc[]
+  statusy_magazynowe    StatusMagazynowy[]
+  statusy_ksiegowe      StatusKsiegowy[]
+  ceny_modeli           CenaModelu[]
 
   @@map("organizacje")
 }
@@ -120,9 +121,10 @@ model Uzytkownik {
   dodane_zalaczniki         Zalacznik[]
   logi_zmian                LogZmian[]
   przypisania_do_wydarzen   WydarzenieUzytkownik[]
-  przypisane_zadania        Zadanie[]
+  przypisane_zadania        ZadanieUzytkownik[] // Poprawiono z Zadanie[]
   nieobecnosci              Nieobecnosc[]
   utworzone_wydarzenia      Wydarzenie[] @relation("TworcaWydarzenia")
+  zlecone_zadania           Zadanie[] @relation("ZlecajacyZadanie")
 
   @@unique([id_organizacji, email])
   @@map("uzytkownicy")
@@ -183,6 +185,7 @@ model Kontrahent {
   wydarzenia       Wydarzenie[]
   oferty           Oferta[]
   wynajmy          Wynajem[]
+  zadania          Zadanie[]
 
   @@index([nip])
   @@index([nazwa])
@@ -322,39 +325,37 @@ model ModelSprzetu {
 }
 
 model Egzemplarz {
-  id                 Int       @id @default(autoincrement())
-  id_organizacji     Int
-  id_modelu          Int
-  id_magazynu        Int?
-  nazwa              String?   @db.VarChar(200)
-  sn                 String?   @db.VarChar(200)
-  qr_kod             String?   @db.VarChar(255)
-  kod_kreskowy       String?   @db.VarChar(100)
-  miejsce_w_mag      String?   @db.VarChar(200)
-  id_case            Int?
+  id                     Int       @id @default(autoincrement())
+  id_organizacji         Int
+  id_modelu              Int
+  id_magazynu            Int?
+  nazwa                  String?   @db.VarChar(200)
+  sn                     String?   @db.VarChar(200)
+  qr_kod                 String?   @db.VarChar(255)
+  kod_kreskowy           String?   @db.VarChar(100)
+  miejsce_w_mag          String?   @db.VarChar(200)
+  id_case                Int?
   id_statusu_egzemplarza Int?
-  szerokosc          Decimal?  @db.Decimal(10, 2)
-  wysokosc           Decimal?  @db.Decimal(10, 2)
-  glebokosc          Decimal?  @db.Decimal(10, 2)
-  objetosc           Decimal?  @db.Decimal(10, 2)
-  waga               Decimal?  @db.Decimal(10, 2)
-  wartosc            Decimal?  @db.Decimal(12, 2)
-  notatki_wewnetrzne String?   @db.Text
-  zdjecie            String?   @db.VarChar(500)
-  aktywny            Boolean   @default(true)
-  data_utworzenia    DateTime  @default(now())
-  data_aktualizacji  DateTime  @updatedAt
-  data_usuniecia     DateTime?
+  szerokosc              Decimal?  @db.Decimal(10, 2)
+  wysokosc               Decimal?  @db.Decimal(10, 2)
+  glebokosc              Decimal?  @db.Decimal(10, 2)
+  objetosc               Decimal?  @db.Decimal(10, 2)
+  waga                   Decimal?  @db.Decimal(10, 2)
+  wartosc                Decimal?  @db.Decimal(12, 2)
+  notatki_wewnetrzne     String?   @db.Text
+  zdjecie                String?   @db.VarChar(500)
+  aktywny                Boolean   @default(true)
+  data_utworzenia        DateTime  @default(now())
+  data_aktualizacji      DateTime  @updatedAt
+  data_usuniecia         DateTime?
 
-  // --- NOWE POLA DLA KARTY EGZEMPLARZA (WMS) ---
-  numer_urzadzenia    String?   @db.VarChar(100)
-  data_produkcji      DateTime? @db.Date
-  cena_zakupu         Decimal?  @db.Decimal(12, 2)
-  pakowany_pojedynczo Boolean   @default(false)
-  opis                String?   @db.Text
-  status_serwisowy    String    @default("Działa") @db.VarChar(50) 
+  numer_urzadzenia       String?   @db.VarChar(100)
+  data_produkcji         DateTime? @db.Date
+  cena_zakupu            Decimal?  @db.Decimal(12, 2)
+  pakowany_pojedynczo    Boolean   @default(false)
+  opis                   String?   @db.Text
+  status_serwisowy       String    @default("Działa") @db.VarChar(50) 
 
-  // Relacje
   organizacja      Organizacja   @relation(fields: [id_organizacji], references: [id])
   model            ModelSprzetu  @relation(fields: [id_modelu], references: [id])
   magazyn          Magazyn?      @relation(fields: [id_magazynu], references: [id])
@@ -362,6 +363,7 @@ model Egzemplarz {
   zawartosc_case   Egzemplarz[]  @relation("CaseToEgzemplarz")
   pozycje_wynajmu  PozycjaWynajmu[]
   serwisy          SerwisSprzetu[]
+  zadania          Zadanie[] // Dodano relację odwrotną
 
   @@index([id_modelu])
   @@index([sn])
@@ -506,6 +508,7 @@ model Wydarzenie {
   etapy            EtapWydarzenia[]
   oferty           Oferta[]
   wynajmy          Wynajem[]
+  zadania          Zadanie[]
   ekipa            WydarzenieUzytkownik[] // Nowa relacja
   pojazdy          WydarzeniePojazd[]     // Nowa relacja
   tworca                  Uzytkownik?       @relation("TworcaWydarzenia", fields: [id_tworcy], references: [id])
@@ -961,6 +964,7 @@ model Pojazd {
 
   organizacja      Organizacja @relation(fields: [id_organizacji], references: [id])
   wydarzenia       WydarzeniePojazd[]
+  zadania          Zadanie[]
 
   @@unique([id_organizacji, nr_rejestracyjny])
   @@map("pojazdy")
@@ -986,25 +990,59 @@ model WydarzeniePojazd {
 }
 
 model Zadanie {
-  id               Int       @id @default(autoincrement())
-  id_organizacji   Int
-  id_przypisanego  Int?
-  tytul            String    @db.VarChar(200)
-  opis             String?   @db.Text
-  termin           DateTime?
-  status           String    @default("nowe") @db.VarChar(50)
-  powiazany_typ    String?   @db.VarChar(100) // np. wydarzenie, wynajem
-  powiazane_id     Int?
-  aktywny          Boolean   @default(true)
-  data_utworzenia  DateTime  @default(now())
-  data_aktualizacji DateTime @updatedAt
-  data_usuniecia   DateTime?
+  id                      Int       @id @default(autoincrement())
+  id_organizacji          Int
+  id_tworcy               Int?      // Kto zlecił zadanie
+  tytul                   String    @db.VarChar(200)
+  opis                    String?   @db.Text
+  typ_zadania             String?   @db.VarChar(100)
+  status                  String    @default("nowe") @db.VarChar(50)
+  
+  data_start              DateTime?
+  data_koniec             DateTime?
+  
+  szacowany_czas_h        Decimal?  @db.Decimal(10, 2)
+  szacowana_liczba_osob   Int?
+  cykl                    String?   @db.VarChar(100) // np. jednorazowe, codzienne
 
-  organizacja      Organizacja @relation(fields: [id_organizacji], references: [id])
-  przypisany       Uzytkownik? @relation(fields: [id_przypisanego], references: [id])
+  // Konkretne powiązania z modułami
+  id_wydarzenia           Int?
+  id_kontrahenta          Int?
+  id_egzemplarza          Int?
+  id_pojazdu              Int?
 
-  @@index([powiazany_typ, powiazane_id])
+  aktywny                 Boolean   @default(true)
+  data_utworzenia         DateTime  @default(now())
+  data_aktualizacji       DateTime  @updatedAt
+  data_usuniecia          DateTime?
+
+  organizacja             Organizacja  @relation(fields: [id_organizacji], references: [id])
+  tworca                  Uzytkownik?  @relation("ZlecajacyZadanie", fields: [id_tworcy], references: [id])
+  
+  // Relacje
+  wydarzenie              Wydarzenie?  @relation(fields: [id_wydarzenia], references: [id])
+  kontrahent              Kontrahent?  @relation(fields: [id_kontrahenta], references: [id])
+  pojazd                  Pojazd?      @relation(fields: [id_pojazdu], references: [id])
+  egzemplarz              Egzemplarz?  @relation(fields: [id_egzemplarza], references: [id]) // Dodano poprawną relację sprzętu
+  
+  przypisani_uzytkownicy  ZadanieUzytkownik[]
+
   @@map("zadania")
+}
+model ZadanieUzytkownik {
+  id              Int       @id @default(autoincrement())
+  id_organizacji  Int
+  id_zadania      Int
+  id_uzytkownika  Int
+  aktywny         Boolean   @default(true)
+  data_utworzenia DateTime  @default(now())
+
+  organizacja     Organizacja @relation(fields: [id_organizacji], references: [id])
+  zadanie         Zadanie     @relation(fields: [id_zadania], references: [id], onDelete: Cascade)
+  uzytkownik      Uzytkownik  @relation(fields: [id_uzytkownika], references: [id])
+
+  @@unique([id_zadania, id_uzytkownika])
+  @@map("zadania_uzytkownicy")
 }
 
 model Nieobecnosc {
