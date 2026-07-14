@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { api } from '../../../../lib/api'; // POPRAWIONY IMPORT NAZWANY
+import { api } from '../../../../lib/api'; 
+// IMPORT NASZEGO NOWEGO KOMPONENTU DO OBSŁUGI SPRZĘTU
+import { EventEquipmentTab } from '../../../../components/EventEquipmentTab'; 
 
 const TABS = [
   { id: 'chat', label: 'Chat', icon: MessageSquare },
@@ -383,6 +385,18 @@ export default function EventDetailsPage() {
          {activeTab === 'szczegoly' && (
            <div className="text-center text-slate-400 mt-10 text-sm">Wybierz szczegółowe sekcje do edycji z górnego formularza. Zapisz zmiany zielonym przyciskiem na górnej listwie.</div>
          )}
+
+         {/* --- TUTAJ WPIĘTY JEST NASZ MODUŁ SPRZĘTU (SKANERA) --- */}
+         {activeTab === 'sprzet' && (
+           isNew ? (
+             <div className="text-center text-slate-400 mt-10 flex flex-col items-center justify-center gap-2">
+               <Box size={32} className="text-slate-200" />
+               <span className="text-sm">Najpierw zapisz wydarzenie, aby móc zarządzać sprzętem (wydania i przyjęcia).</span>
+             </div>
+           ) : (
+             <EventEquipmentTab eventId={Number(params.id)} />
+           )
+         )}
          
          {activeTab === 'historia' && (
            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 max-w-5xl mx-auto">
@@ -419,7 +433,7 @@ export default function EventDetailsPage() {
            </div>
          )}
 
-         {activeTab !== 'historia' && activeTab !== 'szczegoly' && (
+         {activeTab !== 'historia' && activeTab !== 'szczegoly' && activeTab !== 'sprzet' && (
            <div className="text-center text-slate-400 mt-10 flex flex-col items-center justify-center gap-2">
              <Box size={32} className="text-slate-200" />
              <span className="text-sm">Zakładka <span className="font-bold uppercase text-slate-600">{activeTab}</span> znajduje się w fazie projektowania.</span>

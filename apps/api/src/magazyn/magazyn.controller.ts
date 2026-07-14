@@ -31,7 +31,33 @@ export class MagazynController {
     const id_organizacji = Number((req.user as any).id_organizacji);
     return this.magazynService.createModelSprzetu(dto, id_organizacji);
   }
+  // --- DOKUMENTY MAGAZYNOWE (WZ/PZ/PLAN) ---
 
+  @Get('skan')
+  async skanujSprzet(@Query('kod') kod: string, @Req() req: Request) {
+    const id_organizacji = Number((req.user as any).id_organizacji);
+    if (!kod) return null;
+    return this.magazynService.skanujSprzet(kod, id_organizacji);
+  }
+
+  @Post('dokumenty')
+  async createDokument(@Body() dto: any, @Req() req: Request) {
+    const id_organizacji = Number((req.user as any).id_organizacji);
+    const id_uzytkownika = Number((req.user as any).id);
+    return this.magazynService.createDokumentMagazynowy(dto, id_organizacji, id_uzytkownika);
+  }
+
+  @Get('dokumenty/:id')
+  async getDokumentById(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
+    const id_organizacji = Number((req.user as any).id_organizacji);
+    return this.magazynService.getDokumentMagazynowy(id, id_organizacji);
+  }
+
+  @Get('wydarzenia/:id/sprzet')
+  async getSprzetWydarzenia(@Param('id', ParseIntPipe) id_wydarzenia: number, @Req() req: Request) {
+    const id_organizacji = Number((req.user as any).id_organizacji);
+    return this.magazynService.getSprzetWydarzenia(id_wydarzenia, id_organizacji);
+  }
   @Get('modele/:id')
   async getModelById(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
     const id_organizacji = Number((req.user as any).id_organizacji);

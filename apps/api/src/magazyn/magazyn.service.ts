@@ -566,4 +566,182 @@ export class MagazynService {
       orderBy: { data_utworzenia: 'desc' }
     });
   }
+
+  // =========================================================
+  // LOGIKA SKANOWANIA I DOKUMENTÓW (WZ / PZ / PLAN)
+  // =========================================================
+
+  async skanujSprzet(kod: string, id_organizacji: number) {
+    const egzemplarz = await this.prisma.extendedClient.egzemplarz.findFirst({
+      where: {
+        id_organizacji,
+        aktywny: true,
+        OR: [
+          { kod_kreskowy: kod },
+          { qr_kod: kod },
+          { sn: kod },
+          { numer_urzadzenia: kod }
+        ]
+      },
+      include: {
+        model: { include: { kategoria: true } },
+        zawartosc_case: {
+          where: { aktywny: true },
+          include: { model: { include: { kategoria: true } } }
+        }
+      }
+    });
+
+    if (!egzemplarz) throw new NotFoundException('Nie znaleziono sprzętu o podanym kodzie w magazynie');
+
+    // Zgodnie z V14/V15: Rozpoznajemy czy to Case i zwracamy zawartość
+    const isCase = egzemplarz.model?.typ_sprzetu === 'opakowanie';
+
+    return {
+      ...egzemplarz,
+      isCase,
+      contents: isCase ? egzemplarz.zawartosc_case : []
+    };
+  }
+
+  async getSprzetWydarzenia(id_wydarzenia: number, id_organizacji: number) {
+    // 1. Pobieramy wszystkie dokumenty WZ/PZ dla tego wydarzenia
+    const dokumenty = await this.prisma.extendedClient.wydanieMagazynowe.findMany({
+      where: { id_wydarzenia, id_organizacji, aktywny: true },
+      include: {
+        pozycje: {
+          where: { aktywny: true },
+          include: {
+            model: { include: { kategoria: true } },
+            egzemplarz: true
+          }
+        },
+        tworca: { select: { imie: true, nazwisko: true } }
+      },
+      orderBy: { data_utworzenia: 'desc' }
+    });
+
+    // 2. Pobieramy zapotrzebowanie (Plan) z połączonych wynajmów
+    const wynajmy = await this.prisma.extendedClient.wynajem.findMany({
+      where: { id_wydarzenia, id_organizacji, aktywny: true },
+      include: {
+        pozycje: {
+          where: { aktywny: true },
+          include: { model: { include: { kategoria: true } } }
+        }
+      }
+    });
+
+    // 3. Agregujemy plan (ile jakiego modelu zaplanowano)
+    const zapotrzebowanie: Record<number, { model: any, zaplanowano: number, wydano: number, przyjeto: number }> = {};
+
+    wynajmy.forEach(wynajem => {
+      wynajem.pozycje.forEach(poz => {
+        if (!zapotrzebowanie[poz.id_modelu]) {
+          zapotrzebowanie[poz.id_modelu] = { model: poz.model, zaplanowano: 0, wydano: 0, przyjeto: 0 };
+        }
+        zapotrzebowanie[poz.id_modelu].zaplanowano += Number(poz.ilosc);
+      });
+    });
+
+    // 4. Zliczamy fizycznie wydane i przyjęte sztuki z WZ / PZ
+    dokumenty.forEach(doc => {
+      doc.pozycje.forEach(poz => {
+        if (!zapotrzebowanie[poz.id_modelu]) {
+           zapotrzebowanie[poz.id_modelu] = { model: poz.model, zaplanowano: 0, wydano: 0, przyjeto: 0 };
+        }
+        if (doc.typ === 'WZ') zapotrzebowanie[poz.id_modelu].wydano += Number(poz.ilosc);
+        if (doc.typ === 'PZ') zapotrzebowanie[poz.id_modelu].przyjeto += Number(poz.ilosc);
+      });
+    });
+
+    return {
+      dokumenty,
+      podsumowanie: Object.values(zapotrzebowanie)
+    };
+  }
+
+  async createDokumentMagazynowy(dto: any, id_organizacji: number, id_tworcy: number) {
+    return this.prisma.extendedClient.$transaction(async (tx) => {
+      const doc = await tx.wydanieMagazynowe.create({
+        data: {
+          id_organizacji,
+          id_tworcy,
+          typ: dto.typ,
+          numer: dto.numer || `${dto.typ}-${Date.now()}`,
+          id_wydarzenia: dto.id_wydarzenia ? Number(dto.id_wydarzenia) : null,
+          id_wynajmu: dto.id_wynajmu ? Number(dto.id_wynajmu) : null,
+          notatki: dto.notatki
+        }
+      });
+
+      const pozycjeData: any[] = []; 
+      
+      for (const pos of dto.pozycje) {
+        if (dto.typ === 'WZ' || dto.typ === 'PZ') {
+          if (!pos.id_egzemplarza) continue; 
+          
+          const egz = await tx.egzemplarz.findUnique({ 
+            where: { id: pos.id_egzemplarza }, 
+            include: { model: true } 
+          });
+          
+          if (!egz || egz.model?.typ_sprzetu === 'opakowanie') continue; 
+
+          // INTELEIGENTNA ZMIANA STATUSU SPRZĘTU
+          const nowyStatus = dto.typ === 'WZ' ? 'Wydany (Event)' : 'Działa';
+          
+          await tx.egzemplarz.update({
+             where: { id: egz.id },
+             data: { status_serwisowy: nowyStatus }
+          });
+
+          await tx.logZmian.create({
+            data: {
+              id_organizacji, id_uzytkownika: id_tworcy,
+              typ_obiektu: 'Egzemplarz', id_obiektu: egz.id,
+              akcja: dto.typ === 'WZ' ? 'WYDANIE_WZ' : 'PRZYJECIE_PZ',
+              nowa_wartosc: JSON.stringify({ status_serwisowy: nowyStatus, id_dokumentu: doc.id })
+            }
+          });
+        }
+
+        pozycjeData.push({
+          id_organizacji,
+          id_wydania: doc.id,
+          id_modelu: pos.id_modelu,
+          id_egzemplarza: pos.id_egzemplarza || null,
+          ilosc: pos.ilosc || 1,
+          nazwa_na_dokumencie: pos.nazwa_na_dokumencie || null
+        });
+      }
+
+      if (pozycjeData.length > 0) {
+        await tx.pozycjaWydaniaMagazynowego.createMany({ data: pozycjeData });
+      }
+
+      return doc;
+    });
+  }
+
+  async getDokumentMagazynowy(id: number, id_organizacji: number) {
+    const doc = await this.prisma.extendedClient.wydanieMagazynowe.findFirst({
+      where: { id, id_organizacji, aktywny: true },
+      include: {
+        tworca: { select: { imie: true, nazwisko: true } },
+        wydarzenie: true,
+        wynajem: true,
+        pozycje: {
+          where: { aktywny: true },
+          include: {
+            model: { include: { kategoria: true } },
+            egzemplarz: true
+          }
+        }
+      }
+    });
+
+    if (!doc) throw new NotFoundException('Dokument nie istnieje');
+    return doc;
+  }
 }

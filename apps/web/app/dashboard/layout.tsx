@@ -51,8 +51,8 @@ const menuConfig = [
       { label: 'Magazyn wewnętrzny', icon: Home, href: '/dashboard/warehouse' },
       { label: 'Magazyn dostawców', icon: Globe },
       { label: 'Ceny', icon: DollarSign, href: '/dashboard/warehouse/pricing' },
-      { label: 'Wydanie z magazynu', icon: ArrowRight },
-      { label: 'Przyjęcie do magazynu', icon: ArrowLeft },
+      { label: 'Wydanie z magazynu', icon: ArrowRight, href: '/dashboard/warehouse/receiving' },
+      { label: 'Przyjęcie do magazynu', icon: ArrowLeft, href: '/dashboard/warehouse/receiving' },
       { label: 'Niezwrócony sprzęt', icon: ArrowRight },
       { label: 'Modele', icon: Monitor, href: '/dashboard/warehouse/models' },
       { label: 'Egzemplarze', icon: Plug, href: '/dashboard/warehouse/items' },
@@ -74,7 +74,16 @@ const menuConfig = [
   },
   { icon: UsersRound, label: 'Użytkownicy', isExpandable: true, subItems: [{label: 'Lista'}, {label: 'Uprawnienia'}] },
   { icon: Truck, label: 'Flota', isExpandable: true, subItems: [{label: 'Pojazdy'}, {label: 'Rezerwacje'}] },
-  { icon: Settings, label: 'Ustawienia', isExpandable: true, subItems: [{label: 'Ogólne'}, {label: 'Słowniki'}] },
+  { 
+    icon: Settings, label: 'Ustawienia', isExpandable: true, 
+    subItems: 
+      [
+        {label: 'Ogólne'}, 
+        {label: 'Słowniki'}, 
+        { label: 'Statusy operacyjne', icon: CheckCircle2, href: '/dashboard/settings/statuses' },
+        { label: 'Rodzaje wydarzeń', icon: Calendar, href: '/dashboard/settings/event-types' }
+      ] 
+  },
   { icon: CalendarDays, label: 'Planowanie', isExpandable: true, subItems: [{label: 'Harmonogram'}] },
   { icon: FileText, label: 'Oferty', isExpandable: false },
   { icon: AlertTriangle, label: 'Wypożyczenia i konflikty', badge: '0', isExpandable: false },
